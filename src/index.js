@@ -1,27 +1,57 @@
-import React from 'react'
+import React, { useRef, useEffect, useState } from 'react'
 import ReactDOM from 'react-dom'
-import './style.css'
+import PropTypes from 'prop-types'
+import PrintReport from './component'
+import { PrintReportWindowContext } from './usePrintReportWindow'
 
-import PrintReport from './PrintReport'
+const PrintReportContainer = ({ name, children }) => {
+  const windowRef = useRef(null)
+  const [container, setContainer] = useState(null)
 
-const NewTabReport = () =>
-  <PrintReport name='testing123'>
-    <div className='body'>
-      <div className='header'>
-        <div className='header__company'>130 - (DEMO) ABC COMPANY</div>
-        <div className='header__title'>
-          <div className='header__title--name'>Technician Details</div>
-          <div className='header__title--payperiod'>Pay Period: 04/01/2021 - 04/14/2021</div>
-        </div>
-      </div>
-      <div className='employee'>
-        <div className='employee__info'>
-          <div className='employee__info--name'>ADAMS, JOHN</div>
-          <div className='employee__info--code'>(JADAMS85)</div>
-        </div>
-        <div className='employee__check'>Check# 1502</div>
-      </div>
-    </div>
-  </PrintReport>
+  useEffect(() => {
+    windowRef.current = window.open('', '', '')
+    if (windowRef.current) {
+      const element = windowRef.current.document.createElement('div')
+      windowRef.current.document.title = name
+      windowRef.current.document.body.appendChild(element)
+      setContainer(element)
 
-ReactDOM.render(<NewTabReport />, document.getElementById('root'))
+      const stylesheets = Array.from(document.styleSheets)
+      stylesheets.forEach(stylesheet => {
+        if (stylesheet.href) {
+          const newStyleElement = document.createElement('link')
+          newStyleElement.rel = 'stylesheet'
+          newStyleElement.href = stylesheet.href
+          windowRef.current.document.head.appendChild(newStyleElement)
+        } else if (stylesheet && stylesheet.cssRules && stylesheet.cssRules.length > 0) {
+          const newStyleElement = document.createElement('style')
+          Array.from(stylesheet.cssRules).forEach(rule => {
+            newStyleElement.appendChild(document.createTextNode(rule.cssText))
+          })
+          windowRef.current.document.head.appendChild(newStyleElement)
+        }
+      })
+    }
+
+    return () => windowRef.current?.close()
+  }, [name])
+
+  if (container == null) {
+    return null
+  }
+
+  return ReactDOM.createPortal(
+    <PrintReportWindowContext.Provider value={windowRef.current}>
+      <PrintReport>
+        {children}
+      </PrintReport>
+    </PrintReportWindowContext.Provider>,
+    container)
+}
+
+PrintReportContainer.propTypes = {
+  name: PropTypes.string,
+  children: PropTypes.node
+}
+
+export default PrintReportContainer
